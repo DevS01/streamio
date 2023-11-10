@@ -19,38 +19,55 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Movie Streaming App',
-      home: MovieList(),
+      theme: ThemeData(
+        primarySwatch: Colors.purple,
+        fontFamily: 'Montserrat',
+      ),
+      home: HomeScreen(),
     );
   }
 }
 
-class MovieList extends StatefulWidget {
+class HomeScreen extends StatefulWidget {
   @override
-  _MovieListState createState() => _MovieListState();
+  _HomeScreenState createState() => _HomeScreenState();
 }
 
-class _MovieListState extends State<MovieList> {
-  final String tmdbApiKey =
-      '2641c693538f9a030d30e9de74a61434'; // Replace with your TMDb API key
+class _HomeScreenState extends State<HomeScreen> {
+  final String tmdbApiKey = '2641c693538f9a030d30e9de74a61434';
   final String tmdbBaseUrl = 'https://api.themoviedb.org/3';
-  final String tmdbPopularEndpoint = '/movie/popular';
-
-  late List<Movie> movies;
+  final String tmdbSearchEndpoint = '/search/movie';
+  final TextEditingController _searchController = TextEditingController();
+  late List<Movie> searchResults;
+  bool isScrolled = false;
 
   @override
   void initState() {
     super.initState();
-    fetchPopularMovies();
+    searchResults = [];
+    _searchController.addListener(_onSearchChanged);
   }
 
-  Future<void> fetchPopularMovies() async {
+  void _onSearchChanged() {
+    String query = _searchController.text;
+    if (query.isNotEmpty) {
+      _searchMovies(query);
+    } else {
+      setState(() {
+        searchResults.clear();
+      });
+    }
+  }
+
+  Future<void> _searchMovies(String query) async {
     final response = await http.get(
-      Uri.parse('$tmdbBaseUrl$tmdbPopularEndpoint?api_key=$tmdbApiKey'),
+      Uri.parse(
+          '$tmdbBaseUrl$tmdbSearchEndpoint?api_key=$tmdbApiKey&query=$query'),
     );
 
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body)['results'];
-      movies = data
+      searchResults = data
           .map((movie) => Movie(
                 title: movie['title'],
                 posterPath:
@@ -58,38 +75,81 @@ class _MovieListState extends State<MovieList> {
                 tmdbCode: movie['id'],
               ))
           .toList();
-
-      setState(() {});
     } else {
-      throw Exception('Failed to load popular movies');
+      throw Exception('Failed to load search results');
     }
+
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Popular Movies'),
-      ),
-      body: movies == null
-          ? Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: movies.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text(movies[index].title),
-                  leading: Image.network(movies[index].posterPath),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => MyWebView(movie: movies[index]),
-                      ),
-                    );
-                  },
-                );
-              },
+      backgroundColor: Colors.black,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              expandedHeight: 200,
+              floating: false,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                title: Text(
+                  'Stream.Dev',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Roboto Mono',
+                  ),
+                ),
+                background: Container(
+                  color: Colors.purple, // Set the background color here
+                ),
+              ),
             ),
+          ];
+        },
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: TextField(
+                controller: _searchController,
+                style: TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search for movies',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(8),
+                  hintStyle: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                itemCount: searchResults.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(
+                      searchResults[index].title,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    leading: Image.network(searchResults[index].posterPath),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              MyWebView(movie: searchResults[index]),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
