@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
 void main() => runApp(MyApp());
 
@@ -83,7 +83,7 @@ class _MovieListState extends State<MovieList> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => MoviePlayer(movie: movies[index]),
+                        builder: (context) => MyWebView(movie: movies[index]),
                       ),
                     );
                   },
@@ -94,32 +94,23 @@ class _MovieListState extends State<MovieList> {
   }
 }
 
-class MoviePlayer extends StatefulWidget {
+class MyWebView extends StatefulWidget {
   final Movie movie;
 
-  MoviePlayer({required this.movie});
+  MyWebView({Key? key, required this.movie}) : super(key: key);
 
   @override
-  _MoviePlayerState createState() => _MoviePlayerState();
+  _MyWebViewState createState() => _MyWebViewState();
 }
 
-class _MoviePlayerState extends State<MoviePlayer> {
-  final String vidsrcBaseUrl = 'https://vidsrc.to/embed/movie/';
+class _MyWebViewState extends State<MyWebView> {
+  InAppWebViewController? _webViewController;
   late String videoUrl;
 
   @override
   void initState() {
     super.initState();
-    videoUrl = '$vidsrcBaseUrl${widget.movie.tmdbCode}';
-  }
-
-  void launchURL(url) async {
-    final Uri url = Uri.parse(videoUrl);
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
-    } else {
-      throw 'Could not launch $url';
-    }
+    videoUrl = 'https://vidsrc.to/embed/movie/${widget.movie.tmdbCode}';
   }
 
   @override
@@ -128,26 +119,11 @@ class _MoviePlayerState extends State<MoviePlayer> {
       appBar: AppBar(
         title: Text(widget.movie.title),
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'TMDB Code: ${widget.movie.tmdbCode}',
-            style: TextStyle(fontSize: 16),
-          ),
-          SizedBox(height: 20),
-          Text(
-            'Video URL: $videoUrl',
-            style: TextStyle(fontSize: 16),
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(
-              onPressed: () {
-                launchURL(videoUrl);
-              },
-              child: Text('Launch URL')),
-        ],
+      body: InAppWebView(
+        initialUrlRequest: URLRequest(url: Uri.parse(videoUrl)),
+        onWebViewCreated: (controller) {
+          _webViewController = controller;
+        },
       ),
     );
   }
